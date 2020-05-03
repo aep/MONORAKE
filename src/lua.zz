@@ -1,8 +1,8 @@
 using <stdio.h>::{printf};
 using <stdlib.h>::{free, realloc};
-using "../lua-5.3.5/src/lua.h" as lua;
-using "../lua-5.3.5/src/lualib.h" as lual;
-using "../lua-5.3.5/src/lauxlib.h" as luax;
+using "../3rp/lua-5.3.5/src/lua.h" as lua;
+using "../3rp/lua-5.3.5/src/lualib.h" as lual;
+using "../3rp/lua-5.3.5/src/lauxlib.h" as luax;
 
 using string;
 using err;

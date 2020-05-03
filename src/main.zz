@@ -1,8 +1,11 @@
-using <stdio.h>::{printf, FILE, fopen, fclose, fgets};
+using <stdio.h>::{printf, FILE, fopen, fclose, fgets, rename, remove};
+using <sys/stat.h>::{mkdir, S_IRWXU,S_IRWXG,S_IROTH,S_IXOTH};
 using lua;
 using candybars;
 using err;
 using string;
+using sass;
+using sha256;
 
 using <dirent.h>::{
     DIR,
@@ -12,7 +15,45 @@ using <dirent.h>::{
     readdir,
 };
 
-fn iter(err::Err+et mut*e)
+fn iter_css(err::Err+et mut*e)
+    where err::checked(*e)
+{
+    DIR mut* dir = opendir ("./site/src/css/");
+    if dir == 0 {
+        err::fail_with_errno(e, "open src/css/");
+        return;
+    }
+    for (;;) {
+        Dirent * ent = readdir(dir);
+        if ent == 0 {
+            break;
+        }
+
+        char *s = unsafe<char*>(ent->d_name);
+        static_attest(safe(s));
+        static_attest(nullterm(s));
+        new+1000 name = string::make();
+        name.append_cstr("./site/src/css/");
+        name.append_cstr(s);
+
+        if name.ends_with_cstr(".css") || name.ends_with_cstr(".scss") {
+            run_css(e, name.cstr());
+            if err::check(e) { return; }
+        }
+
+    }
+    closedir(dir);
+}
+
+fn run_css(err::Err+et mut*e, char *inpath)
+    where nullterm(inpath)
+    where err::checked(*e)
+{
+    sass::make(e, inpath);
+    if err::check(e) { return; };
+}
+
+fn iter_html(err::Err+et mut*e, lua::Context mut*engine)
     where err::checked(*e)
 {
     DIR mut* dir = opendir ("./site/src/pages/");
@@ -34,7 +75,7 @@ fn iter(err::Err+et mut*e)
         name.append_cstr(s);
 
         if name.ends_with_cstr(".html") {
-            run_html(e, name.cstr());
+            run_page(e, name.cstr(), engine);
             if err::check(e) { return; }
         }
 
@@ -42,47 +83,108 @@ fn iter(err::Err+et mut*e)
     closedir(dir);
 }
 
-
-fn run_html(err::Err+et mut*e, char * input_path)
-    where nullterm(input_path)
+fn read_file(string::String+st new mut*self, err::Err+et mut*e, char *p)
+    where nullterm(p)
     where err::checked(*e)
+    model(len(self->mem) >= self->len)
 {
-    FILE mut * f = fopen(input_path, "r");
+    static_attest(len(self->mem) >= self->len);
+
+    FILE mut * f = fopen(p, "r");
     if f == 0 {
-        err::fail_with_errno(e, "cannot open %s", input_path);
+        err::fail_with_errno(e, "cannot open %s", p);
         return;
     }
-
-    new+10000 ifb = string::make();
     char mut buf[1000] = {0};
     for (;;) {
         if fgets(buf, static(len(buf)), f) == 0 {
             break;
         }
         static_attest(nullterm(buf));
-        ifb.append_cstr(buf);
+        self->append_cstr(buf);
     }
     fclose(f);
+}
 
-
-    new v = lua::create();
-    v.set(e, "a", "bob");
+fn run_layout(err::Err+et mut*e, lua::Context mut *engine)
+    where err::checked(*e)
+{
+    new+10000 ifb = read_file(e, "./site/src/layouts/default.html");
     if err::check(e) { return; };
 
-    candybars::run(e, ifb.mem, ifb.len, &v);
-    v.close();
+    new+10000 ofb = string::make();
+    let mut ofs = ofb.append_slice();
+    candybars::run(e, ifb.mem, ifb.len, engine, &ofs);
     if err::check(e) { return; };
 
+    printf("%.*s\n", ofs.at, ofs.mem());
+}
 
 
+fn run_page(err::Err+et mut*e, char * input_path, lua::Context mut *engine)
+    where nullterm(input_path)
+    where err::checked(*e)
+{
+    new+10000 ifb = read_file(e, input_path);
+    if err::check(e) { return; };
+
+    new+10000 ofb = string::make();
+    let mut ofs = ofb.append_slice();
+    candybars::run(e, ifb.mem, ifb.len, engine, &ofs);
+    if err::check(e) { return; };
+
+    engine->set(e, "page",  ofb.cstr());
+    if err::check(e) { return; };
+    engine->set(e, "title", "uhm");
+    if err::check(e) { return; };
+    run_layout(e, engine);
 }
 
 export fn main() -> int {
     printf("THE MONORAKE\n");
     new+1000 e = err::make();
 
-    iter(&e);
+
+    mkdir("site/dist", unsafe<int>(S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH));
+
+    remove("site/dist/page.css");
+    iter_css(&e);
     e.abort();
 
+    new engine = lua::create();
+
+    new+200 cssname = cachebustcp(&e, "./site/dist/page.css", "page-%s.css");
+    e.abort();
+    engine.set(&e, "res_page_css", cssname.cstr());
+    e.abort();
+
+    iter_html(&e, &engine);
+    e.abort();
+
+    engine.close();
+
     return 0;
+}
+
+fn cachebustcp(string::String+st mut new *self, err::Err+et mut*e, char *inp, char *outf)
+    where err::checked(*e)
+    where nullterm(inp)
+    where nullterm(outf)
+    where st > 0
+{
+    new+100 hash = string::make();
+    sha256::hash_of_file(e, inp, &hash);
+    if err::check(e) { return; }
+
+    string::make(self);
+    self->format(outf, hash.cstr());
+
+    new+300 outpath = string::make();
+    outpath.append_cstr("./site/dist/");
+    outpath.append_cstr(self->cstr());
+
+    if rename(inp, outpath.cstr()) != 0 {
+        err::fail_with_errno(e, "cannot move %s to %s", inp, self->cstr());
+    }
+
 }

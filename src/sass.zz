@@ -1,5 +1,6 @@
-using <stdio.h>::{printf};
-using "../libsass-3.6.4/include/sass.h"::{
+using <stdio.h>::{printf, FILE, fopen, fclose, fgets, fwrite};
+
+using "../3rp/libsass-3.6.4/include/sass.h"::{
     (struct Sass_File_Context) as Sass_File_Context,
     (struct Sass_Context) as Sass_Context,
     (struct Sass_Compiler) as Sass_Compiler,
@@ -16,24 +17,40 @@ using "../libsass-3.6.4/include/sass.h"::{
     sass_context_get_error_text,
     sass_context_get_error_line,
     sass_context_get_error_column,
-
 }
+using err;
+using string;
 
-export fn make_scss(char * input)
+
+export symbol SassError;
+
+export fn make(err::Err+et mut*e, char *path)
+    where err::checked(*e)
 {
-    let ctx = (Sass_File_Context mut*)sass_make_file_context("file.scss");
+    let ctx = (Sass_File_Context mut*)sass_make_file_context(path);
     let compiler = (Sass_Compiler mut*)sass_make_file_compiler(ctx);
     sass_compiler_parse(compiler);
     sass_compiler_execute(compiler);
 
     char * output = sass_context_get_output_string((Sass_Context mut*)ctx);
 
-    printf("%s\n", output);
-
     int error_status = (int)sass_context_get_error_status((Sass_Context mut*)ctx);
-    printf("error: %d\n", error_status);
+    if error_status != 0 {
+        err::fail(e, SassError, "%s", sass_context_get_error_json((Sass_Context mut*)ctx));
+        return;
+    }
+    static_attest(safe(output));
+    static_attest(nullterm(output));
 
 
+    char * op = "./site/dist/page.css";
+    FILE mut * f = fopen(op, "a");
+    if f == 0 {
+        err::fail_with_errno(e, "cannot open %s", op);
+        return;
+    }
+    fwrite(output, string::strlen(output), 1, f);
+    fclose(f);
 
     sass_delete_compiler(compiler);
     sass_delete_file_context(ctx);

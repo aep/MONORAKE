@@ -3,7 +3,7 @@ using string;
 using mem;
 using err;
 using lua;
-
+using slice;
 
 export enum State {
     None,
@@ -19,18 +19,32 @@ export struct Context {
     char *tpl;
     usize l;
     usize at;
+
+    slice::MutSlice mut *out;
 }
+
+export symbol NoReturn;
 
 fn process(Context mut*self, err::Err+et mut*e, char *c, usize l)
     where err::checked(*e)
     where len(c) >= l
 {
     static_attest(safe(self->lua));
+    static_attest(safe(self->out));
+    static_attest(self->out->slice.size >= len(self->out->slice.mem));
+    static_attest(self->out->at <= self->out->slice.size);
+
     char *v = self->lua->run(e, c, l);
     if err::check(e) {
         return;
     }
-    printf("%s", v);
+    if (v == 0) {
+        err::fail(e, NoReturn, "lua expression '%.*s' is nil", l, c);
+        return;
+    }
+    static_attest(safe(v));
+    static_attest(nullterm(v));
+    self->out->append_cstr(v);
 }
 
 
@@ -101,11 +115,14 @@ fn match32(char *tpl) -> bool
 fn literal(Context mut *self, char *tpl, usize l)
     where len(tpl) >= l
 {
-    printf("%.*s", l, tpl);
+    static_attest(safe(self->out));
+    static_attest(self->out->slice.size >= len(self->out->slice.mem));
+    static_attest(self->out->at <= self->out->slice.size);
+    self->out->append_bytes((u8*)tpl, l);
 }
 
 
-export fn run(err::Err+et mut*e, char *tpl, usize l, lua::Context *lua)
+export fn run(err::Err+et mut*e, char *tpl, usize l, lua::Context *lua, slice::MutSlice mut *out)
     where err::checked(*e)
     where len(tpl) >= l
 {
@@ -113,6 +130,7 @@ export fn run(err::Err+et mut*e, char *tpl, usize l, lua::Context *lua)
         tpl: tpl,
         l:   l,
         lua: lua,
+        out: out
     };
     self.irun(e);
 }
