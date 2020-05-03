@@ -1,0 +1,41 @@
+using <stdio.h>::{printf};
+using "../libsass-3.6.4/include/sass.h"::{
+    (struct Sass_File_Context) as Sass_File_Context,
+    (struct Sass_Context) as Sass_Context,
+    (struct Sass_Compiler) as Sass_Compiler,
+    sass_make_file_context,
+    sass_delete_file_context,
+    sass_make_file_compiler,
+    sass_delete_compiler,
+    sass_compiler_parse,
+    sass_compiler_execute,
+    sass_context_get_output_string,
+    sass_context_get_error_status,
+    sass_context_get_error_json,
+    sass_context_get_error_message,
+    sass_context_get_error_text,
+    sass_context_get_error_line,
+    sass_context_get_error_column,
+
+}
+
+export fn make_scss(char * input)
+{
+    let ctx = (Sass_File_Context mut*)sass_make_file_context("file.scss");
+    let compiler = (Sass_Compiler mut*)sass_make_file_compiler(ctx);
+    sass_compiler_parse(compiler);
+    sass_compiler_execute(compiler);
+
+    char * output = sass_context_get_output_string((Sass_Context mut*)ctx);
+
+    printf("%s\n", output);
+
+    int error_status = (int)sass_context_get_error_status((Sass_Context mut*)ctx);
+    printf("error: %d\n", error_status);
+
+
+
+    sass_delete_compiler(compiler);
+    sass_delete_file_context(ctx);
+}
+

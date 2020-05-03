@@ -1,0 +1,124 @@
+[project]
+version = "0.1.0"
+name = "monorake"
+
+cincludes = [
+    "libsass-3.6.4/include/"
+]
+cobjects = [
+    "lua-5.3.5/src/lapi.c",
+    "lua-5.3.5/src/lauxlib.c",
+    "lua-5.3.5/src/lbaselib.c",
+    "lua-5.3.5/src/lbitlib.c",
+    "lua-5.3.5/src/lcode.c",
+    "lua-5.3.5/src/lcorolib.c",
+    "lua-5.3.5/src/lctype.c",
+    "lua-5.3.5/src/ldblib.c",
+    "lua-5.3.5/src/ldebug.c",
+    "lua-5.3.5/src/ldo.c",
+    "lua-5.3.5/src/ldump.c",
+    "lua-5.3.5/src/lfunc.c",
+    "lua-5.3.5/src/lgc.c",
+    "lua-5.3.5/src/linit.c",
+    "lua-5.3.5/src/liolib.c",
+    "lua-5.3.5/src/llex.c",
+    "lua-5.3.5/src/lmathlib.c",
+    "lua-5.3.5/src/lmem.c",
+    "lua-5.3.5/src/loadlib.c",
+    "lua-5.3.5/src/lobject.c",
+    "lua-5.3.5/src/lopcodes.c",
+    "lua-5.3.5/src/loslib.c",
+    "lua-5.3.5/src/lparser.c",
+    "lua-5.3.5/src/lstate.c",
+    "lua-5.3.5/src/lstring.c",
+    "lua-5.3.5/src/lstrlib.c",
+    "lua-5.3.5/src/ltable.c",
+    "lua-5.3.5/src/ltablib.c",
+    "lua-5.3.5/src/ltm.c",
+    "lua-5.3.5/src/lundump.c",
+    "lua-5.3.5/src/lutf8lib.c",
+    "lua-5.3.5/src/lvm.c",
+    "lua-5.3.5/src/lzio.c",
+
+
+    "./libsass-3.6.4/src/c99func.c",
+    "./libsass-3.6.4/src/cencode.c",
+    "./libsass-3.6.4/src/sass_values.cpp",
+    "./libsass-3.6.4/src/output.cpp",
+    "./libsass-3.6.4/src/fn_utils.cpp",
+    "./libsass-3.6.4/src/sass.cpp",
+    "./libsass-3.6.4/src/listize.cpp",
+    "./libsass-3.6.4/src/ast_sel_weave.cpp",
+    "./libsass-3.6.4/src/util.cpp",
+    "./libsass-3.6.4/src/ast_sel_super.cpp",
+    "./libsass-3.6.4/src/parser_selectors.cpp",
+    "./libsass-3.6.4/src/ast_supports.cpp",
+    "./libsass-3.6.4/src/check_nesting.cpp",
+    "./libsass-3.6.4/src/values.cpp",
+    "./libsass-3.6.4/src/plugins.cpp",
+    "./libsass-3.6.4/src/fn_numbers.cpp",
+    "./libsass-3.6.4/src/fn_selectors.cpp",
+    "./libsass-3.6.4/src/ast_fwd_decl.cpp",
+    "./libsass-3.6.4/src/util_string.cpp",
+    "./libsass-3.6.4/src/eval_selectors.cpp",
+    "./libsass-3.6.4/src/cssize.cpp",
+    "./libsass-3.6.4/src/c2ast.cpp",
+    "./libsass-3.6.4/src/parser.cpp",
+    "./libsass-3.6.4/src/operators.cpp",
+    "./libsass-3.6.4/src/fn_maps.cpp",
+    "./libsass-3.6.4/src/emitter.cpp",
+    "./libsass-3.6.4/src/ast_sel_cmp.cpp",
+    "./libsass-3.6.4/src/source.cpp",
+    "./libsass-3.6.4/src/error_handling.cpp",
+    "./libsass-3.6.4/src/ast.cpp",
+    "./libsass-3.6.4/src/ast2c.cpp",
+    "./libsass-3.6.4/src/inspect.cpp",
+    "./libsass-3.6.4/src/sass2scss.cpp",
+    "./libsass-3.6.4/src/ast_values.cpp",
+    "./libsass-3.6.4/src/file.cpp",
+    "./libsass-3.6.4/src/base64vlq.cpp",
+    "./libsass-3.6.4/src/context.cpp",
+    "./libsass-3.6.4/src/json.cpp",
+    "./libsass-3.6.4/src/fn_lists.cpp",
+    "./libsass-3.6.4/src/sass_functions.cpp",
+    "./libsass-3.6.4/src/ast_sel_unify.cpp",
+    "./libsass-3.6.4/src/units.cpp",
+    "./libsass-3.6.4/src/eval.cpp",
+    "./libsass-3.6.4/src/backtrace.cpp",
+    "./libsass-3.6.4/src/bind.cpp",
+    "./libsass-3.6.4/src/lexer.cpp",
+    "./libsass-3.6.4/src/environment.cpp",
+    "./libsass-3.6.4/src/memory/shared_ptr.cpp",
+    "./libsass-3.6.4/src/memory/allocator.cpp",
+    "./libsass-3.6.4/src/sass_context.cpp",
+    "./libsass-3.6.4/src/remove_placeholders.cpp",
+    "./libsass-3.6.4/src/fn_miscs.cpp",
+    "./libsass-3.6.4/src/fn_strings.cpp",
+    "./libsass-3.6.4/src/constants.cpp",
+    "./libsass-3.6.4/src/fn_colors.cpp",
+    "./libsass-3.6.4/src/prelexer.cpp",
+    "./libsass-3.6.4/src/expand.cpp",
+    "./libsass-3.6.4/src/stylesheet.cpp",
+    "./libsass-3.6.4/src/position.cpp",
+    "./libsass-3.6.4/src/source_map.cpp",
+    "./libsass-3.6.4/src/color_maps.cpp",
+    "./libsass-3.6.4/src/extender.cpp",
+    "./libsass-3.6.4/src/utf8_string.cpp",
+    "./libsass-3.6.4/src/ast_selectors.cpp",
+    "./libsass-3.6.4/src/to_value.cpp",
+    "./libsass-3.6.4/src/extension.cpp",
+    "./libsass-3.6.4/contrib/plugin.cpp",
+]
+pkgconfig = []
+cflags = []
+lflags = []
+
+[variants]
+default = []
+
+[dependencies]
+string = "1"
+err = "1"
+mem = "1"
+
+[repos]

@@ -1,0 +1,151 @@
+using <stdio.h>::{printf};
+using string;
+using mem;
+using err;
+using lua;
+
+
+export enum State {
+    None,
+    Start,
+    Bar,
+    End,
+}
+
+export struct Context {
+    lua::Context *lua;
+
+    State state;
+    char *tpl;
+    usize l;
+    usize at;
+}
+
+fn process(Context mut*self, err::Err+et mut*e, char *c, usize l)
+    where err::checked(*e)
+    where len(c) >= l
+{
+    static_attest(safe(self->lua));
+    char *v = self->lua->run(e, c, l);
+    if err::check(e) {
+        return;
+    }
+    printf("%s", v);
+}
+
+
+fn match1(Context mut*self, err::Err+et mut*e)
+    where err::checked(*e)
+{
+    static_attest(self->l  <= len(self->tpl));
+    static_attest(self->at < len(self->tpl));
+    let c = self->tpl[self->at];
+    if c == '{' {
+        switch self->state {
+            State::None => {
+                self->state = State::Start;
+                return;
+            }
+            State::Start => {
+                self->state = State::Bar;
+                let cur_start_of_bar = self->at;
+                for (; self->at < self->l; self->at+=1) {
+                    let c = self->tpl[self->at];
+                    if c == '}' {
+                        switch self->state {
+                            State::Bar => {
+                                self->state = State::End;
+                            }
+                            State::End => {
+                                static_attest(cur_start_of_bar + 1 < len(self->tpl));
+                                static_attest(len(self->tpl + cur_start_of_bar + 1) > self->at - cur_start_of_bar - 2);
+                                self->process(e,
+                                        self->tpl + cur_start_of_bar + 1,
+                                        self->at - cur_start_of_bar - 2
+                                        );
+                                self->state = State::None;
+                            }
+                            default => {
+                            }
+                        }
+                    }
+                    if self->state == State::None {
+                        break;
+                    }
+                }
+                return;
+            }
+        }
+    }
+    self->literal(self->tpl + self->at, 1);
+
+}
+
+static char cmp[32] = {
+    '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{',
+    '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{', '{'
+};
+// this will be auto vectorized with -O3. best with -march=cannonlake
+fn match32(char *tpl) -> bool
+    where len(tpl) >= 32
+{
+    bool mut x = false;
+    for (usize mut at = 0; at < 32; at++) {
+        if (tpl[at] == cmp[at]) {
+            x = x || true;
+        }
+    }
+    return x;
+}
+
+fn literal(Context mut *self, char *tpl, usize l)
+    where len(tpl) >= l
+{
+    printf("%.*s", l, tpl);
+}
+
+
+export fn run(err::Err+et mut*e, char *tpl, usize l, lua::Context *lua)
+    where err::checked(*e)
+    where len(tpl) >= l
+{
+    let mut self = Context {
+        tpl: tpl,
+        l:   l,
+        lua: lua,
+    };
+    self.irun(e);
+}
+
+fn irun(Context mut *self, err::Err+et mut*e)
+    where err::checked(*e)
+{
+
+    static_attest(self->l  <= len(self->tpl));
+    static_attest(self->at < self->l);
+
+    for (; self->at < self->l; self->at+=1) {
+        if self->at + 32 >= self->l {
+            self->match1(e);
+            if err::check(e) {return;}
+        } else {
+            let matchstart  = self->at;
+            let matchend    = self->at + 32;
+            static_attest(len(self->tpl + matchstart) >= 32);
+            static_attest(matchstart < self->l);
+
+            if match32(self->tpl + matchstart) {
+                while ((self->at < matchend) && (self->at < self->l)) {
+                    self->match1(e);
+                    if err::check(e) {return;}
+                    self->at += 1;
+                }
+                self->at -= 1;
+            } else {
+                self->literal(self->tpl + matchstart, 32);
+                self->at += 31;
+            }
+        }
+    }
+}
+

@@ -1,0 +1,88 @@
+using <stdio.h>::{printf, FILE, fopen, fclose, fgets};
+using lua;
+using candybars;
+using err;
+using string;
+
+using <dirent.h>::{
+    DIR,
+    (struct dirent) as Dirent,
+    opendir,
+    closedir,
+    readdir,
+};
+
+fn iter(err::Err+et mut*e)
+    where err::checked(*e)
+{
+    DIR mut* dir = opendir ("./site/src/pages/");
+    if dir == 0 {
+        err::fail_with_errno(e, "open src/pages/");
+        return;
+    }
+    for (;;) {
+        Dirent * ent = readdir(dir);
+        if ent == 0 {
+            break;
+        }
+
+        char *s = unsafe<char*>(ent->d_name);
+        static_attest(safe(s));
+        static_attest(nullterm(s));
+        new+1000 name = string::make();
+        name.append_cstr("./site/src/pages/");
+        name.append_cstr(s);
+
+        if name.ends_with_cstr(".html") {
+            run_html(e, name.cstr());
+            if err::check(e) { return; }
+        }
+
+    }
+    closedir(dir);
+}
+
+
+fn run_html(err::Err+et mut*e, char * input_path)
+    where nullterm(input_path)
+    where err::checked(*e)
+{
+    FILE mut * f = fopen(input_path, "r");
+    if f == 0 {
+        err::fail_with_errno(e, "cannot open %s", input_path);
+        return;
+    }
+
+    new+10000 ifb = string::make();
+    char mut buf[1000] = {0};
+    for (;;) {
+        if fgets(buf, static(len(buf)), f) == 0 {
+            break;
+        }
+        static_attest(nullterm(buf));
+        ifb.append_cstr(buf);
+    }
+    fclose(f);
+
+
+    new v = lua::create();
+    v.set(e, "a", "bob");
+    if err::check(e) { return; };
+
+    candybars::run(e, ifb.mem, ifb.len, &v);
+    v.close();
+    if err::check(e) { return; };
+
+
+
+}
+
+export fn main() -> int {
+    printf("THE MONORAKE\n");
+    new+1000 e = err::make();
+
+    iter(&e);
+    e.abort();
+
+    return 0;
+}
