@@ -27,10 +27,11 @@ so for a file named **source/bla/thingy.candy.scss.hash.css**
 
 available processors:
 
- - scss:  https://sass-lang.com/
- - candy: https://mustache.github.io/mustache.5.html but with lua
- - nop:   does nothing (see processing passes)
- - hash:  append hash of file content to file name
+ - scss:   https://sass-lang.com/
+ - candy:  https://mustache.github.io/mustache.5.html but with lua
+ - nop:    does nothing (see processing passes)
+ - hash:   append hash of file content to file name
+ - layout: wrap in layout.candy.html
 
 ## link to hashed file
 

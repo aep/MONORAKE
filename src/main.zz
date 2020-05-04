@@ -135,6 +135,10 @@ fn iterall(err::Err+et mut*e, char *inpath, char *outpath, IterContext mut*ctx)
             outname.append_cstr(rest.cstr());
             sass::make(e, inname.cstr(), outname.cstr());
             if err::check(e) { return; };
+        } else if ext.eq_cstr("layout") {
+            outname.append_cstr(rest.cstr());
+            static_attest(safe(ctx->engine));
+            run_layout(e, inname.cstr(), outname.cstr(), ctx->engine);
         } else if ext.eq_cstr("candy") {
             outname.append_cstr(rest.cstr());
             static_attest(safe(ctx->engine));
@@ -240,32 +244,38 @@ fn read_file(string::String+st new mut*self, err::Err+et mut*e, char *p)
     fclose(f);
 }
 
-fn run_layout(err::Err+et mut*e, char *outpath, lua::Context mut *engine)
+export symbol TemplateError;
+
+fn run_layout(err::Err+et mut*e, char *input_path, char *output_path, lua::Context mut *engine)
+    where nullterm(input_path)
+    where nullterm(output_path)
     where err::checked(*e)
 {
-    new+100000 ifb = read_file(e, "./layout.candy.html");
+    new+100000 content = read_file(e, input_path);
+    if err::check(e) { return; };
+    engine->set(e, "content",  content.cstr());
+    if err::check(e) { return; };
+
+    content.clear();
+    read_file(&content, e, "./layout.candy.html");
     if err::check(e) { return; };
 
     new+100000 ofb = string::make();
     let mut ofs = ofb.append_slice();
-    candybars::run(e, ifb.mem, ifb.len, engine, &ofs);
+    candybars::run(e, content.mem, content.len, engine, &ofs);
     if err::check(e) {
         err::fail(e, TemplateError, "in layout.candy.html");
         return;
     }
 
-    FILE mut * f = fopen(outpath, "w");
+    FILE mut * f = fopen(output_path, "w");
     if f == 0 {
-        err::fail_with_errno(e, "cannot open %s", outpath);
+        err::fail_with_errno(e, "cannot open %s", output_path);
         return;
     }
     fwrite(ofs.mem(), ofs.at, 1, f);
     fclose(f);
 }
-
-
-
-export symbol TemplateError;
 
 fn run_page(err::Err+et mut*e, char * input_path, char *output_path, lua::Context mut *engine)
     where nullterm(input_path)
@@ -283,11 +293,13 @@ fn run_page(err::Err+et mut*e, char * input_path, char *output_path, lua::Contex
         return;
     }
 
-    engine->set(e, "content",  ofb.cstr());
-    if err::check(e) { return; };
-    engine->set(e, "title", "uhm");
-    if err::check(e) { return; };
-    run_layout(e, output_path, engine);
+    FILE mut * f = fopen(output_path, "w");
+    if f == 0 {
+        err::fail_with_errno(e, "cannot open %s", output_path);
+        return;
+    }
+    fwrite(ofs.mem(), ofs.at, 1, f);
+    fclose(f);
 }
 
 export fn main() -> int {

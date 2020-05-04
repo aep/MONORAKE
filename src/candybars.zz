@@ -165,6 +165,10 @@ fn irun(Context mut *self, err::Err+et mut*e)
                 }
                 self->at -= 1;
             } else {
+                if self->state == State::Start {
+                    self->literal("{", 1);
+                }
+                self->state = State::None;
                 self->literal(self->tpl + matchstart, 32);
                 self->at += 31;
             }
