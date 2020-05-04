@@ -9,46 +9,50 @@ static website builder that just works
  - zero dependencies, it will still work tomorrow
  - really really fast
 
-### site structure
 
-make a website like this:
-```
-  src/
-    pages/
-      index.html
-      whatever.html
-    layouts/
-      default.html
-    css/
-      0_bootstrap.min.css
-      1_unbreak_bootstrap.scss
-      2_thingy.css
-    js/
-      1_spam.js
-      2_spam_must_blink_hard.js
-    resources/
-      memes.jpeg
-
-```
+download binaries here: https://github.com/aep/MONORAKE/releases
 
 
-pages contains .. pages that will be baked to static html.
+### processing
 
+put all your stuff in a directory named source/ in whatever structure.
+the monorake processes those files according to their file endings from left to right.
 
-## candybars
+so for a file named **source/bla/thingy.candy.scss.hash.css**
 
-is like handlebars, but with lua, so uuh, you just put any lua expression in {{HERE}} and guchi
+ 1. candybars
+ 2. scss
+ 3. hashed
+ 4. copied to dist/bla/thingy-87128973198273.css
 
+available processors:
 
-## cache busting
+ - scss:  https://sass-lang.com/
+ - candy: https://mustache.github.io/mustache.5.html but with lua
+ - nop:   does nothing (see processing passes)
+ - hash:  append hash of file content to file name
 
-It adds hashes to filesnames everywhere so browsers re-fetch it when the contents change.
+## link to hashed file
 
-given a file src/resources/neva-giev-yu-up.jpeg, this is how you use it:
+hashes are added to filenames for cache busting, so browsers re-fetch it when the contents change.
+to link the file from html or whatever, a global is available in candybars
+
+given a file src/img/lul.hash.jpeg, ref it like this:
 
 ```html
-    <img src="{{res_neva_giev_yu_up_jpeg}}" alt="lol">
+    <img src="{{ref_img_lul_jpeg}}" alt="lol">
 ```
 
+don't worry about figuring out the right variable name, it is printed during processing
 
 
+## caveat: processing passes
+
+there's no dependency tree, because i've got more important things to do, so processing is done in passes.
+Given two files with identical processing depth, like doo.html.candy and dah.html.candy,
+one cannot refer to the other as hashed file.
+
+you can work around it by adding a nop processor like dah.html.candy.nop which delays
+that file to one pass later than doo.html.candy
+
+if someone actually cares i might implement it correctly, but until then this works well enough for me

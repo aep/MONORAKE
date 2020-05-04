@@ -1,4 +1,5 @@
-using <stdio.h>::{printf, FILE, fopen, fclose, fgets, rename, remove};
+using <stdio.h>::{printf, FILE, fopen, fclose, fgets, rename, remove, fwrite};
+using <unistd.h>::{chdir};
 using <sys/stat.h>::{mkdir, S_IRWXU,S_IRWXG,S_IROTH,S_IXOTH};
 using lua;
 using candybars;
@@ -6,6 +7,8 @@ using err;
 using string;
 using sass;
 using sha256;
+using <string.h>::{malloc};
+inline using "cp.h"::{copyfile};
 
 using <dirent.h>::{
     DIR,
@@ -15,50 +18,24 @@ using <dirent.h>::{
     readdir,
 };
 
-fn iter_css(err::Err+et mut*e)
-    where err::checked(*e)
-{
-    DIR mut* dir = opendir ("./site/src/css/");
-    if dir == 0 {
-        err::fail_with_errno(e, "open src/css/");
-        return;
-    }
-    for (;;) {
-        Dirent * ent = readdir(dir);
-        if ent == 0 {
-            break;
-        }
 
-        char *s = unsafe<char*>(ent->d_name);
-        static_attest(safe(s));
-        static_attest(nullterm(s));
-        new+1000 name = string::make();
-        name.append_cstr("./site/src/css/");
-        name.append_cstr(s);
 
-        if name.ends_with_cstr(".css") || name.ends_with_cstr(".scss") {
-            run_css(e, name.cstr());
-            if err::check(e) { return; }
-        }
+export symbol NoSuchProc;
 
-    }
-    closedir(dir);
+struct IterContext {
+    lua::Context mut*engine;
+    usize pass;
+    bool pass_had_effect;
 }
 
-fn run_css(err::Err+et mut*e, char *inpath)
+fn iterall(err::Err+et mut*e, char *inpath, char *outpath, IterContext mut*ctx)
+    where err::checked(*e)
     where nullterm(inpath)
-    where err::checked(*e)
+    where nullterm(outpath)
 {
-    sass::make(e, inpath);
-    if err::check(e) { return; };
-}
-
-fn iter_html(err::Err+et mut*e, lua::Context mut*engine)
-    where err::checked(*e)
-{
-    DIR mut* dir = opendir ("./site/src/pages/");
+    DIR mut* dir = opendir (inpath);
     if dir == 0 {
-        err::fail_with_errno(e, "open src/pages/");
+        err::fail_with_errno(e, "open %s ", inpath);
         return;
     }
     for (;;) {
@@ -67,20 +44,176 @@ fn iter_html(err::Err+et mut*e, lua::Context mut*engine)
             break;
         }
 
+        new+1000 inname = string::make();
+        inname.append_cstr(inpath);
+        inname.append_cstr("/");
         char *s = unsafe<char*>(ent->d_name);
         static_attest(safe(s));
         static_attest(nullterm(s));
-        new+1000 name = string::make();
-        name.append_cstr("./site/src/pages/");
-        name.append_cstr(s);
+        if string::cstr_eq(s, ".") || string::cstr_eq(s, "..") {
+            continue;
+        }
+        inname.append_cstr(s);
 
-        if name.ends_with_cstr(".html") {
-            run_page(e, name.cstr(), engine);
+        new+1000 outname = string::make();
+        outname.append_cstr(outpath);
+        outname.append_cstr("/");
+        outname.append_cstr(s);
+
+        DIR mut* dir2 = opendir (inname.cstr());
+        if dir2 != 0 {
+            closedir(dir2);
+            if mkdir(outname.cstr(), unsafe<int>(S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)) != 0 {
+                err::fail_with_errno(e, "mkdir %s ", outname.cstr());
+                return;
+            }
+
+            iterall(e, inname.cstr(), outname.cstr(), ctx);
             if err::check(e) { return; }
+            continue;
         }
 
+
+        new+200 fname = string::make();
+        fname.append_cstr(s);
+        new+100 ext   = string::make();
+        new+100 rest  = string::make();
+
+
+
+        if !strip_ext_maybe(&outname, &ext, &rest) || ext.eq_cstr("nop") {
+            if ext.eq_cstr("nop") {
+                outname.append_cstr(rest.cstr());
+            }
+            printf("cp %s\n", outname.cstr());
+            if ctx->pass == 1 {
+                if copyfile(inname.cstr(), outname.cstr()) != 0 {
+                    err::fail_with_errno(e, "cp %s %s ", inname.cstr(),  outname.cstr());
+                    return;
+                }
+            } else {
+                if rename(inname.cstr(), outname.cstr()) != 0 {
+                    err::fail_with_errno(e, "mv %s %s ", inname.cstr(),  outname.cstr());
+                    return;
+                }
+            }
+            continue;
+        }
+
+        ctx->pass_had_effect = true;
+
+        new+200 varname = string::make();
+        usize mut itt = 0;
+        outname.split('/', &itt, &varname);
+        outname.split('/', &itt, &varname);
+        varname.clear();
+        varname.append_cstr("ref_");
+        outname.substr(itt, inname.len - itt, &varname);
+        varname.append_cstr(rest.cstr());
+
+
+        if ext.eq_cstr("hash") {
+            new+100 hex = string::make();
+            sha256::hash_of_file(e, inname.cstr(), &hex);
+            if err::check(e) { return; };
+            outname.append_cstr("-");
+            outname.append_cstr(hex.cstr());
+            outname.append_cstr(rest.cstr());
+            if ctx->pass == 1 {
+                if copyfile(inname.cstr(), outname.cstr()) != 0 {
+                    err::fail_with_errno(e, "cp %s %s ", inname.cstr(),  outname.cstr());
+                    return;
+                }
+            } else {
+                if rename(inname.cstr(), outname.cstr()) != 0 {
+                    err::fail_with_errno(e, "mv %s %s ", inname.cstr(),  outname.cstr());
+                    return;
+                }
+            }
+        } else if ext.eq_cstr("scss") {
+            outname.append_cstr(rest.cstr());
+            sass::make(e, inname.cstr(), outname.cstr());
+            if err::check(e) { return; };
+        } else if ext.eq_cstr("candy") {
+            outname.append_cstr(rest.cstr());
+            static_attest(safe(ctx->engine));
+            run_page(e, inname.cstr(), outname.cstr(), ctx->engine);
+        } else {
+            outname.append_cstr(rest.cstr());
+            err::fail(e, NoSuchProc, "processor %s not supported in filename %s", ext.cstr(), inname.cstr());
+            return;
+        }
+
+
+
+        for (usize mut i = 0; i < varname.slen(); i++) {
+            unsafe {
+                if (varname.mem[i] < '0' || varname.mem[i] > '9') &&
+                (varname.mem[i] < 'a' ||  varname.mem[i] > 'z') &&
+                (varname.mem[i] < 'A' || varname.mem[i] > 'Z')
+                {
+                    varname.mem[i] = '_';
+                }
+            }
+        }
+
+        new+200 refvalue = string::make();
+        itt = 0;
+        outname.split('/', &itt, &refvalue);
+        outname.split('/', &itt, &refvalue);
+        refvalue.clear();
+        err::assert(itt != 0);
+        outname.substr(itt, outname.len - itt, &refvalue);
+
+        static_attest(safe(ctx->engine));
+        ctx->engine->set(e, varname.cstr(), refvalue.cstr());
+        if err::check(e) { return; };
+
+        printf("%s =  %s | %s \n", varname.cstr(), inname.cstr(), ext.cstr());
     }
     closedir(dir);
+}
+
+
+fn strip_ext_maybe(string::String+at mut* fname, string::String+bt mut* ext, string::String+bc mut* rest) -> bool
+    where at > 2
+{
+    static_attest(len(fname->mem) >= fname->len);
+
+    usize mut extstart = 0;
+    usize mut extend = 0;
+    for (usize mut i = 0; i < fname->len ; i++) {
+        static_attest(i < fname->len);
+        if fname->mem[i] == '.' {
+            if extstart == 0 {
+                extstart = i + 1;
+            } else {
+                extend = i;
+                break;
+            }
+        }
+    }
+
+    if extend != 0 {
+        ext->clear();
+        err::assert(extend - extstart < bt);
+        fname->substr(extstart, extend - extstart, ext);
+
+
+        rest->clear();
+        char *eo = unsafe<char*>(fname->mem + extend);
+        static_attest(safe(eo));
+        static_attest(nullterm(eo));
+        rest->append_cstr(eo);
+
+        static_attest(extstart - 1< len(fname->mem));
+        fname->len = extstart - 1;
+        fname->mem[fname->len] = 0;
+
+        return true;
+    }
+
+    return false;
 }
 
 fn read_file(string::String+st new mut*self, err::Err+et mut*e, char *p)
@@ -106,23 +239,36 @@ fn read_file(string::String+st new mut*self, err::Err+et mut*e, char *p)
     fclose(f);
 }
 
-fn run_layout(err::Err+et mut*e, lua::Context mut *engine)
+fn run_layout(err::Err+et mut*e, char *outpath, lua::Context mut *engine)
     where err::checked(*e)
 {
-    new+10000 ifb = read_file(e, "./site/src/layouts/default.html");
+    new+10000 ifb = read_file(e, "./layout.candy.html");
     if err::check(e) { return; };
 
     new+10000 ofb = string::make();
     let mut ofs = ofb.append_slice();
     candybars::run(e, ifb.mem, ifb.len, engine, &ofs);
-    if err::check(e) { return; };
+    if err::check(e) {
+        err::fail(e, TemplateError, "in layout.candy.html");
+        return;
+    }
 
-    printf("%.*s\n", ofs.at, ofs.mem());
+    FILE mut * f = fopen(outpath, "w");
+    if f == 0 {
+        err::fail_with_errno(e, "cannot open %s", outpath);
+        return;
+    }
+    fwrite(ofs.mem(), ofs.at, 1, f);
+    fclose(f);
 }
 
 
-fn run_page(err::Err+et mut*e, char * input_path, lua::Context mut *engine)
+
+export symbol TemplateError;
+
+fn run_page(err::Err+et mut*e, char * input_path, char *output_path, lua::Context mut *engine)
     where nullterm(input_path)
+    where nullterm(output_path)
     where err::checked(*e)
 {
     new+10000 ifb = read_file(e, input_path);
@@ -131,37 +277,89 @@ fn run_page(err::Err+et mut*e, char * input_path, lua::Context mut *engine)
     new+10000 ofb = string::make();
     let mut ofs = ofb.append_slice();
     candybars::run(e, ifb.mem, ifb.len, engine, &ofs);
-    if err::check(e) { return; };
+    if err::check(e) {
+        err::fail(e, TemplateError, "in %s", input_path);
+        return;
+    }
 
     engine->set(e, "page",  ofb.cstr());
     if err::check(e) { return; };
     engine->set(e, "title", "uhm");
     if err::check(e) { return; };
-    run_layout(e, engine);
+    run_layout(e, output_path, engine);
 }
 
 export fn main() -> int {
     printf("THE MONORAKE\n");
     new+1000 e = err::make();
 
-
-    mkdir("site/dist", unsafe<int>(S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH));
-
-    remove("site/dist/page.css");
-    iter_css(&e);
+    cleandir(&e, "dist", 0);
     e.abort();
+
+    cleandir(&e, "build", 0);
+    e.abort();
+    mkdir("build", unsafe<int>(S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH));
 
     new engine = lua::create();
 
-    new+200 cssname = cachebustcp(&e, "./site/dist/page.css", "page-%s.css");
+    let mut ctx = IterContext {
+        engine: &engine,
+        pass:   1
+    };
+
+    for (;;) {
+        ctx.pass_had_effect = false;
+
+        new+1000 din = string::make();
+        if ctx.pass == 1 {
+            din.append_cstr("source");
+        } else {
+            din.format("build/pass%u", ctx.pass - 1);
+        }
+        new+1000 dout = string::make();
+        dout.format("build/pass%u", ctx.pass);
+
+        mkdir(dout.cstr(), unsafe<int>(S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH));
+        printf("--------------pass %u---------------------\n", ctx.pass);
+        iterall(&e, din.cstr(), dout.cstr(), &ctx);
+        e.abort();
+
+        if !ctx.pass_had_effect {
+            printf("------------------------------------------\n", ctx.pass);
+            printf("fin in dist/*\n");
+
+            if rename(dout.cstr(), "dist") != 0 {
+                err::fail_with_errno(&e, "mv %s %s ", dout.cstr(), "dist");
+                e.abort();
+            }
+
+            break;
+        }
+
+        ctx.pass += 1;
+    }
+
+
+
+    /*
+
+
+    remove("dist/page.css");
+    iter_css(&e);
+    e.abort();
+
+
+    new+200 cssname = cachebustcp(&e, "./dist/page.css", "page-%s.css");
     e.abort();
     engine.set(&e, "res_page_css", cssname.cstr());
     e.abort();
 
     iter_html(&e, &engine);
     e.abort();
+    */
 
     engine.close();
+
 
     return 0;
 }
@@ -187,4 +385,51 @@ fn cachebustcp(string::String+st mut new *self, err::Err+et mut*e, char *inp, ch
         err::fail_with_errno(e, "cannot move %s to %s", inp, self->cstr());
     }
 
+}
+
+
+fn cleandir(err::Err+et mut*e, char *path, int depth)
+    where err::checked(*e)
+    where nullterm(path)
+{
+    DIR mut* dir = opendir (path);
+    if dir == 0 {
+        if depth > 0 {
+            err::fail_with_errno(e, "open %s ", path);
+        }
+        return;
+    }
+    for (;;) {
+        Dirent * ent = readdir(dir);
+        if ent == 0 {
+            break;
+        }
+
+        new+1000 name = string::make();
+        name.append_cstr(path);
+        name.append_cstr("/");
+        char *s = unsafe<char*>(ent->d_name);
+        static_attest(safe(s));
+        static_attest(nullterm(s));
+        if string::cstr_eq(s, ".") || string::cstr_eq(s, "..") {
+            continue;
+        }
+        name.append_cstr(s);
+
+        DIR mut* dir2 = opendir (name.cstr());
+        if dir2 != 0 {
+            closedir(dir2);
+            cleandir(e, name.cstr(), depth + 1);
+            if err::check(e) { return; }
+        } else {
+            if remove(name.cstr()) != 0 {
+                err::fail_with_errno(e, "remove %s ", name.cstr());
+                return;
+            }
+        }
+    }
+    closedir(dir);
+    if remove(path) != 0 {
+        err::fail_with_errno(e, "remove %s ", path);
+    }
 }

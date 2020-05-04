@@ -24,7 +24,9 @@ using string;
 
 export symbol SassError;
 
-export fn make(err::Err+et mut*e, char *path)
+export fn make(err::Err+et mut*e, char *path, char *outpath)
+    where nullterm(path)
+    where nullterm(outpath)
     where err::checked(*e)
 {
     let ctx = (Sass_File_Context mut*)sass_make_file_context(path);
@@ -43,10 +45,9 @@ export fn make(err::Err+et mut*e, char *path)
     static_attest(nullterm(output));
 
 
-    char * op = "./site/dist/page.css";
-    FILE mut * f = fopen(op, "a");
+    FILE mut * f = fopen(outpath, "w");
     if f == 0 {
-        err::fail_with_errno(e, "cannot open %s", op);
+        err::fail_with_errno(e, "cannot open %s", outpath);
         return;
     }
     fwrite(output, string::strlen(output), 1, f);

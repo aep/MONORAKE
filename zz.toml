@@ -3,7 +3,7 @@ version = "0.1.0"
 name = "monorake"
 
 cincludes = [
-    "libsass-3.6.4/include/"
+    "3rp/libsass-3.6.4/include/"
 ]
 cobjects = [
     "3rp/lua-5.3.5/src/lapi.c",
