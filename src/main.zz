@@ -283,7 +283,6 @@ fn run_page(err::Err+et mut*e, char * input_path, char *output_path, lua::Contex
         return;
     }
 
-    printf("%s\n", ofb.cstr());
     engine->set(e, "content",  ofb.cstr());
     if err::check(e) { return; };
     engine->set(e, "title", "uhm");

@@ -90,6 +90,11 @@ fn match1(Context mut*self, err::Err+et mut*e)
                 return;
             }
         }
+    } else {
+        if self->state == State::Start {
+            self->literal("{", 1);
+        }
+        self->state = State::None;
     }
     self->literal(self->tpl + self->at, 1);
 
