@@ -243,10 +243,10 @@ fn read_file(string::String+st new mut*self, err::Err+et mut*e, char *p)
 fn run_layout(err::Err+et mut*e, char *outpath, lua::Context mut *engine)
     where err::checked(*e)
 {
-    new+10000 ifb = read_file(e, "./layout.candy.html");
+    new+100000 ifb = read_file(e, "./layout.candy.html");
     if err::check(e) { return; };
 
-    new+10000 ofb = string::make();
+    new+100000 ofb = string::make();
     let mut ofs = ofb.append_slice();
     candybars::run(e, ifb.mem, ifb.len, engine, &ofs);
     if err::check(e) {
@@ -272,10 +272,10 @@ fn run_page(err::Err+et mut*e, char * input_path, char *output_path, lua::Contex
     where nullterm(output_path)
     where err::checked(*e)
 {
-    new+10000 ifb = read_file(e, input_path);
+    new+100000 ifb = read_file(e, input_path);
     if err::check(e) { return; };
 
-    new+10000 ofb = string::make();
+    new+100000 ofb = string::make();
     let mut ofs = ofb.append_slice();
     candybars::run(e, ifb.mem, ifb.len, engine, &ofs);
     if err::check(e) {
@@ -283,7 +283,8 @@ fn run_page(err::Err+et mut*e, char * input_path, char *output_path, lua::Contex
         return;
     }
 
-    engine->set(e, "page",  ofb.cstr());
+    printf("%s\n", ofb.cstr());
+    engine->set(e, "content",  ofb.cstr());
     if err::check(e) { return; };
     engine->set(e, "title", "uhm");
     if err::check(e) { return; };

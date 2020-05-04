@@ -39,6 +39,7 @@ pub fn set(Context mut *self, err::Err+et mut*e, char *k, char *v)
     where nullterm(v)
 {
     lua::lua_pushstring(self->l, v);
+    char *s = (char*)lua::lua_tostring(self->l, -1);
     lua::lua_setglobal(self->l, k);
 }
 
