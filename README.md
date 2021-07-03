@@ -4,7 +4,7 @@ THE MONORAKE
 static website builder that just works
 
  - scss
- - candybars templates (handlebars + lua)
+ - go templates
  - cache busting
  - zero dependencies, it will still work tomorrow
  - really really fast
@@ -18,9 +18,9 @@ download binaries here: https://github.com/aep/MONORAKE/releases
 put all your stuff in a directory named source/ in whatever structure.
 the monorake processes those files according to their file endings from left to right.
 
-so for a file named **source/bla/thingy.candy.scss.hash.css**
+so for a file named **source/bla/thingy.template.scss.hash.css**
 
- 1. candybars
+ 1. tpl
  2. scss
  3. hashed
  4. copied to dist/bla/thingy-87128973198273.css
@@ -28,7 +28,7 @@ so for a file named **source/bla/thingy.candy.scss.hash.css**
 available processors:
 
  - scss:   https://sass-lang.com/
- - candy:  https://mustache.github.io/mustache.5.html but with lua
+ - tpl:    https://golang.org/pkg/html/template/
  - nop:    does nothing (see processing passes)
  - hash:   append hash of file content to file name
  - layout: wrap in layout.candy.html
@@ -41,11 +41,8 @@ to link the file from html or whatever, a global is available in candybars
 given a file src/img/lul.hash.jpeg, ref it like this:
 
 ```html
-    <img src="{{ref_img_lul_jpeg}}" alt="lol">
+    <img src="{{call .Path "img/lul.hash.jpeg"}}" alt="lol">
 ```
-
-don't worry about figuring out the right variable name, it is printed during processing
-
 
 ## caveat: processing passes
 
